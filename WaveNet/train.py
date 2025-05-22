@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader, RandomSampler, Subset
 import numpy as np
 import os
 import wandb
+from tqdm import tqdm
 
 from model import WaveNet
 from data_utils import VCTKSpeakerDataset, mu_law_encode, mu_law_decode, one_hot_encode
@@ -63,7 +64,8 @@ def train_wavenet(config):
     global_step = 0
     for epoch in range(config["epochs"]):
         model.train()
-        for batch_idx, segments_raw in enumerate(dataloader):
+        pbar = tqdm(dataloader, desc=f"Epoch {epoch+1}/{config['epochs']}")
+        for batch_idx, segments_raw in enumerate(pbar):
             # segments_raw: (B, segment_length) - µ-law encoded integer indices
             segments_raw = segments_raw.to(device)
 
@@ -91,9 +93,11 @@ def train_wavenet(config):
             loss.backward()
             optimizer.step()
             
+            pbar.set_postfix({"Batch": f"{batch_idx+1}/{len(dataloader)}", "Loss": f"{loss.item():.4f}"})
+            
             global_step += 1
             if global_step % config["log_interval"] == 0:
-                print(f"Epoch: {epoch+1}/{config['epochs']} | Batch: {batch_idx+1}/{len(dataloader)} | Loss: {loss.item():.4f}")
+                # print(f"Epoch: {epoch+1}/{config['epochs']} | Batch: {batch_idx+1}/{len(dataloader)} | Loss: {loss.item():.4f}")
                 wandb.log({"train_loss": loss.item()}, step=global_step)
         
         if (epoch + 1) % config["generation_interval"] == 0:
@@ -119,7 +123,7 @@ def train_wavenet(config):
             print("Audio sample generated and logged to wandb.")
 
         if (epoch + 1) % config["save_interval"] == 0:
-            checkpoint_path = f"wavenet_speaker_epoch_{epoch+1}.pth"
+            checkpoint_path = f"{config['model_dir']}/wavenet_speaker_epoch_{epoch+1}.pth"
             torch.save(model.state_dict(), checkpoint_path)
             wandb.save(checkpoint_path)
             print(f"Model saved to {checkpoint_path}")
@@ -152,24 +156,25 @@ def generate_audio(model, length, quantization_channels, device, prime_samples_c
 # --- Main Execution ---
 if __name__ == "__main__":
     config = {
-        "audio_dir": "data/VCTK-Corpus/wav48/p225",
+        "audio_dir": "./vctk/VCTK-Corpus/wav48/p225",
+        "model_dir": "/data2/wl/wavenet/ckpts",
         "wandb_project_name": "wavenet-audio-generation",
         "wandb_entity": "shuitata",
         "sample_rate": 16000, 
         "quantization_channels": 256,
-        "segment_length": 4000, 
-        "max_dataset_samples": 100,
+        "segment_length": 8000, 
+        "max_dataset_samples": 100000,
         "wavenet_layer_size": 10,
         "wavenet_stack_size": 4,
         "wavenet_res_channels": 256,
-        "wavenet_skip_channels": 512,
-        "batch_size": 2,
-        "epochs": 20,
+        "wavenet_skip_channels": 256,
+        "batch_size": 16,
+        "epochs": 50,
         "learning_rate": 1e-4, 
-        "num_workers": 4, 
-        "log_interval": 100, 
+        "num_workers": 8, 
+        "log_interval": 20, 
         "save_interval": 5, 
-        "generation_interval": 5, 
+        "generation_interval": 10, 
         "generation_length": 16000 * 2, 
         "generation_temperature": 0.8,
     }
