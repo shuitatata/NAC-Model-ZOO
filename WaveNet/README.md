@@ -49,6 +49,15 @@ where $*$ denotes the convolution operation, $\odot$ denotes the element-wise mu
 
 WaveNet uses the residual and skip connections to speed up convergence and enable traning more deeper model.
 
+## Dataset Preparation
+You can download the VCTK dataset from [kaggle](https://www.kaggle.com/api/v1/datasets/download/kynthesis/vctk-corpus).
+
+use the following command to download and unzip the dataset:
+
+```bash
+wget https://www.kaggle.com/api/v1/datasets/download/kynthesis/vctk-corpus -O vctk-corpus.zip
+unzip vctk-corpus.zip -d ./vctk-corpus && rm vctk-corpus.zip
+```
 
 
 
