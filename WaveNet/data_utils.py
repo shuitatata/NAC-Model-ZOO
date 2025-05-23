@@ -6,7 +6,7 @@ import os
 import glob
 from torch.utils.data import Dataset
 
-# --- Helper Functions: µ-law encoding/decoding & one-hot ---
+# --- Helper Functions: µ-law encoding/decoding ---
 def mu_law_encode(audio, quantization_channels=256):
     """
     Encodes audio signal using µ-law algorithm.
@@ -36,17 +36,6 @@ def mu_law_decode(output, quantization_channels=256):
     signal = np.sign(signal) * (np.exp(np.abs(signal) * np.log1p(mu)) - 1.0) / mu
     return signal
 
-def one_hot_encode(indices, num_classes):
-    """
-    Converts integer indices to one-hot encoded vectors.
-    Args:
-        indices (torch.Tensor): Tensor of indices (B, L).
-        num_classes (int): Number of classes for one-hot encoding.
-    Returns:
-        torch.Tensor: One-hot encoded tensor (B, L, num_classes).
-    """
-    return torch.nn.functional.one_hot(indices, num_classes=num_classes).float()
-
 # --- Dataset Class ---
 class VCTKSpeakerDataset(Dataset):
     def __init__(self, audio_dir, segment_length, quantization_channels=256, target_sample_rate=16000):
@@ -72,7 +61,7 @@ class VCTKSpeakerDataset(Dataset):
 
         print(f"Found {len(self.audio_files)} audio files in {audio_dir}")
         self.resampler = None
-        self.all_audio_data = self._load_and_preprocess_all_audio()
+        self.all_audio_data_encoded, self.all_audio_data_onehot = self._load_and_preprocess_all_audio()
 
     def _load_and_preprocess_all_audio(self):
         all_processed_audio = []
@@ -99,14 +88,23 @@ class VCTKSpeakerDataset(Dataset):
         if not all_processed_audio:
             raise ValueError("No audio files could be processed.")
             
-        return torch.cat(all_processed_audio)
-
+        # 连接所有音频数据
+        all_audio_encoded = torch.cat(all_processed_audio)
+        
+        # 一次性对所有数据进行 one-hot encoding，利用并行化加速
+        print("Performing one-hot encoding on all audio data...")
+        all_audio_onehot = torch.nn.functional.one_hot(all_audio_encoded.long(), num_classes=self.quantization_channels).float()
+        print(f"One-hot encoding completed. Shape: {all_audio_onehot.shape}")
+        
+        return all_audio_encoded, all_audio_onehot
 
     def __len__(self):
-        if len(self.all_audio_data) < self.segment_length:
+        if len(self.all_audio_data_encoded) < self.segment_length:
             return 0
-        return len(self.all_audio_data) - self.segment_length + 1
+        return len(self.all_audio_data_encoded) - self.segment_length + 1
 
     def __getitem__(self, idx):
-        segment = self.all_audio_data[idx : idx + self.segment_length]
-        return segment 
+        # 返回编码的segments（用于target）和对应的one-hot segments（用于input）
+        segment_encoded = self.all_audio_data_encoded[idx : idx + self.segment_length]
+        segment_onehot = self.all_audio_data_onehot[idx : idx + self.segment_length]
+        return segment_encoded, segment_onehot 
