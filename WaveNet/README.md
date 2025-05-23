@@ -1,4 +1,4 @@
-## Implementation of WaveNet
+# Implementation of WaveNet
 
 This is a implementation of WaveNet, a model for generating audio data.
 
@@ -40,14 +40,20 @@ where $*$ denotes the convolution operation, $\odot$ denotes the element-wise mu
 
 **noted**: In my implementation, I use same kernel for gate and filter.
 
-
-
-
-
 ### Residual and Skip Connections
 ![Residual and Skip Connections](./assets/WaveNet_structure.png)
 
 WaveNet uses the residual and skip connections to speed up convergence and enable traning more deeper model.
+
+## Install Dependencies
+I use the python 3.12.0 on ubuntu 22.04.
+
+Install the dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
 
 ## Dataset Preparation
 You can download the VCTK dataset from [kaggle](https://www.kaggle.com/api/v1/datasets/download/kynthesis/vctk-corpus).
@@ -58,6 +64,16 @@ use the following command to download and unzip the dataset:
 wget https://www.kaggle.com/api/v1/datasets/download/kynthesis/vctk-corpus -O vctk-corpus.zip
 unzip vctk-corpus.zip -d ./vctk-corpus && rm vctk-corpus.zip
 ```
+
+## Training
+Adjusting the configuration in config.py, and run the following command to start training:
+
+```bash
+python train.py
+```
+
+
+
 
 
 
