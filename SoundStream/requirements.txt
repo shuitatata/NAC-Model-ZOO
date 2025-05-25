@@ -1,0 +1,3 @@
+SoundStream==0.0.1
+torch==2.7.0
+vector_quantize_pytorch==1.22.16
