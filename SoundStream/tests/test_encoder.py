@@ -1,4 +1,4 @@
-from SoundStream.encoder import CausalConv1d, EncoderResidualUnit, EncoderBlock, Encoder
+from SoundStream.encoder import CausalConv1d, ResidualUnit, EncoderBlock, Encoder
 import torch
 
 def test_causal_conv1d_wo_dilation_shape():
@@ -8,6 +8,10 @@ def test_causal_conv1d_wo_dilation_shape():
 
     # check shape
     assert y.shape == (1, 5, 20)
+
+    conv = CausalConv1d(10, 5, 1, dilation=1, stride=2)
+    y = conv(x)
+    assert y.shape == (1, 5, 10)
 
 def test_causal_conv1d_wo_dilation_causal():
     # check causal
@@ -35,7 +39,7 @@ def test_causal_conv1d_with_dilation_causal():
 
 def test_encoder_residual_unit():
     x = torch.randn(1, 10, 20) # (batch_size, in_channels, seq_len)
-    conv = EncoderResidualUnit(10) # in_channels=10, out_channels=5
+    conv = ResidualUnit(10) # in_channels=10, out_channels=5
     y = conv(x) # (batch_size, out_channels, seq_len)
     assert y.shape == (1, 10, 20)
 
@@ -46,8 +50,12 @@ def test_encoder_block():
     assert y.shape == (1, 20, 20)
 
 def test_encoder():
-    x = torch.randn(1, 10, 640) # (batch_size, in_channels, seq_len)
-    conv = Encoder(10, 20, [2,4,5,8]) # in_channels=10, out_channels=20
+    x = torch.randn(1, 1, 640) # (batch_size, in_channels, seq_len)
+    conv = Encoder(10, 20, [2,4,5,8]) # hidden_channels=10, out_channels=20
     # M = 2*4*5*8 = 320
     y = conv(x) # (batch_size, out_channels, 640/M)
     assert y.shape == (1, 20, 2)
+
+    x = torch.randn(1, 1, 641) # (batch_size, in_channels, seq_len)
+    y = conv(x)
+    assert y.shape == (1, 20, 3)
