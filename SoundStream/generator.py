@@ -32,3 +32,4 @@ class Generator(nn.Module):
         
         out = self.decoder(embeddings)
         return out
+

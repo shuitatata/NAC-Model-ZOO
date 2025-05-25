@@ -1,4 +1,4 @@
-from SoundStream.model import Generator
+from SoundStream.generator import Generator
 import torch
 
 def test_generator():
