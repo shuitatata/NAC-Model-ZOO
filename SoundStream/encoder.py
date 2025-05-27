@@ -2,6 +2,9 @@ import torch
 from vector_quantize_pytorch import ResidualVQ
 import torch.nn.functional as F
 import torch.nn as nn
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class CausalConv1d(nn.Module):
@@ -17,7 +20,8 @@ class CausalConv1d(nn.Module):
         """
         if self.padding > 0:
             x = F.pad(x, (self.padding, 0))
-        return self.conv(x)  # (batch_size, out_channels, seq_len)
+        x = self.conv(x)
+        return x  # (batch_size, out_channels, seq_len)
 
 
 class ResidualUnit(nn.Module):
@@ -42,7 +46,8 @@ class ResidualUnit(nn.Module):
         """
         x: (batch_size, in_channels, seq_len)
         """
-        return x + self.layers(x)  # (batch_size, out_channels, seq_len)
+        x = x + self.layers(x)
+        return x  # (batch_size, out_channels, seq_len)
 
 
 class EncoderBlock(nn.Module):
@@ -64,7 +69,10 @@ class EncoderBlock(nn.Module):
         """
         x: (batch_size, in_channels, seq_len)
         """
-        return self.layers(x)  # (batch_size, out_channels, seq_len)
+        logger.debug(f"EncoderBlock-input shape: {x.shape}")
+        x = self.layers(x)
+        logger.debug(f"EncoderBlock-output shape: {x.shape}")
+        return x  # (batch_size, out_channels, seq_len)
 
 
 class Encoder(nn.Module):
@@ -86,6 +94,6 @@ class Encoder(nn.Module):
 
     def forward(self, x):
         """
-        x: (batch_size, in_channels, seq_len)
+        x: (batch_size,1, seq_len)
         """
         return self.layers(x) # (batch_size, out_channels, seq_len)

@@ -1,7 +1,10 @@
 import torch
-from .encoder import ResidualUnit, CausalConv1d
+from encoder import ResidualUnit, CausalConv1d
 import torch.nn as nn
 import torch.nn.functional as F
+import logging
+
+logger = logging.getLogger(__name__)
 
 class TransposedCausalConv1d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, dilation=1, bias=True):
@@ -30,7 +33,7 @@ class DecoderBlock(nn.Module):
         super(DecoderBlock, self).__init__()
 
         self.layers = nn.Sequential(
-            TransposedCausalConv1d(in_channels, out_channels, kernel_size = 2 * stride, stride=stride),
+            TransposedCausalConv1d(in_channels = in_channels, out_channels = out_channels, kernel_size = 2 * stride, stride=stride),
             nn.ELU(),
             ResidualUnit(out_channels, dilation=1),
             nn.ELU(),
@@ -41,8 +44,10 @@ class DecoderBlock(nn.Module):
         )
 
     def forward(self, x):
-        print(f"DecoderBlock: {x.shape}")
-        return self.layers(x)
+        logger.debug(f"DecoderBlock: {x.shape}")
+        x = self.layers(x)
+        logger.debug(f"DecoderBlock-output shape: {x.shape}")
+        return x
 
 class Decoder(nn.Module):
     """

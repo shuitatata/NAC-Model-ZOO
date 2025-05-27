@@ -1,4 +1,4 @@
-from SoundStream.encoder import CausalConv1d, ResidualUnit, EncoderBlock, Encoder
+from encoder import CausalConv1d, ResidualUnit, EncoderBlock, Encoder
 import torch
 
 def test_causal_conv1d_wo_dilation_shape():
@@ -40,6 +40,11 @@ def test_causal_conv1d_with_dilation_causal():
 def test_encoder_residual_unit():
     x = torch.randn(1, 10, 20) # (batch_size, in_channels, seq_len)
     conv = ResidualUnit(10) # in_channels=10, out_channels=5
+    y = conv(x) # (batch_size, out_channels, seq_len)
+    assert y.shape == (1, 10, 20)
+
+    x = torch.randn(1, 10, 20) # (batch_size, in_channels, seq_len)
+    conv = ResidualUnit(10, dilation=3) # in_channels=10, out_channels=5
     y = conv(x) # (batch_size, out_channels, seq_len)
     assert y.shape == (1, 10, 20)
 

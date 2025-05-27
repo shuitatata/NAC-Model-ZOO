@@ -12,6 +12,9 @@ data/
 # wandb
 wandb/
 
+# vscode
+.vscode/
+
 # C extensions
 *.so
 

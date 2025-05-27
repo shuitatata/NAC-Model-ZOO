@@ -1,21 +1,32 @@
+import os
+print(os.sys.path)
 import torch
-from SoundStream.decoder import TransposedCausalConv1d, DecoderBlock, Decoder
+from decoder import TransposedCausalConv1d, DecoderBlock, Decoder
 
 def test_transposed_causal_conv1d_shape():
     x = torch.zeros(1, 5, 20) # (batch_size, in_channels, seq_len)
-    conv = TransposedCausalConv1d(5, 20, 1, dilation=1, bias=False)
+    conv = TransposedCausalConv1d(in_channels=5, out_channels=20, kernel_size=1, dilation=1, bias=False)
     y = conv(x)
     assert y.shape == (1, 20, 20)
 
     x = torch.zeros(1, 1, 20) # (batch_size, in_channels=1, seq_len)
-    conv = TransposedCausalConv1d(1, 5, 3, dilation=1, stride=3, bias=False)
+    conv = TransposedCausalConv1d(in_channels=1, out_channels=5, kernel_size=3, dilation=1, stride=3, bias=False)
     y = conv(x)
     assert y.shape == (1, 5, 60)
+
+    conv = TransposedCausalConv1d(in_channels=1, out_channels=5, kernel_size=3, dilation=3, stride=3, bias=False)
+    y = conv(x)
+    assert y.shape == (1, 5, 60)
+
+    x = torch.zeros(1, 1, 37) # (batch_size, in_channels=1, seq_len)
+    conv = TransposedCausalConv1d(in_channels=1, out_channels=5, kernel_size=3, dilation=3, stride=3, bias=False)
+    y = conv(x)
+    assert y.shape == (1, 5, 111)
 
 def test_transposed_causal_conv1d_causal():
     x = torch.zeros(1, 5, 20) # (batch_size, in_channels, seq_len)
     x[:, :, 10:] = 1
-    conv = TransposedCausalConv1d(5, 20, 1, dilation=1, bias=False)
+    conv = TransposedCausalConv1d(in_channels=5, out_channels=20, kernel_size=1, dilation=1, bias=False)
     y = conv(x)
     assert y.shape == (1, 20, 20)
     assert torch.all(y[:, :, :10] == 0)
