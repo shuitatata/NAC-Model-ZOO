@@ -15,23 +15,23 @@ C = 32      # STFT判别器通道数
 F = 512    # STFT判别器频率维度
 
 # 训练参数
-batch_size = 4
-lr = 1e-3
-epochs = 100
-sample_rate = 24000
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
+batch_size = 1
+lr = 1e-4
+epochs = 10000
+sample_rate = 16000
+device = "cuda:1" if torch.cuda.is_available() else "cpu"
 
 # 损失函数权重
 lambda_adv = 1.0      # 对抗损失权重
-lambda_feat = 1.0     # 特征匹配损失权重  
-lambda_rec = 1e-6     # 重构损失权重 (降低权重以平衡数值差异)
+lambda_feat = 100.0     # 特征匹配损失权重  
+lambda_rec = 1.0     # 重构损失权重 (降低权重以平衡数值差异)
 
 # wandb配置
 project_name = "soundstream-training"
 experiment_name = "baseline"
 log_interval = 10   # 每多少个batch记录一次
 save_interval = 500 # 每多少个batch保存一次模型
-generate_interval = 200 # 每多少个batch生成一次音频
+generate_interval = 50 # 每多少个batch生成一次音频
 
 # 模型保存路径
 checkpoint_dir = "/data2/wl/SoundStreamcheckpoints"

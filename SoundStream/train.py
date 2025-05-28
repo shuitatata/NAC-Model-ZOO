@@ -36,13 +36,16 @@ def collate_fn(batch):
     return torch.nn.utils.rnn.pad_sequence(arrays, batch_first=True), lengths
 
 # Load dataset
-ds = load_dataset("mythicinfinity/libritts", "dev", split="dev.clean[:100]")
-ds = ds.train_test_split(test_size=0.1)
+# ds = load_dataset("mythicinfinity/libritts", "dev", split="dev.clean[:10]")
+ds = load_dataset("TwinkStart/Nsynth", split='test[:10]')
+# ds = ds.train_test_split(test_size=0)
 ds = ds.with_format("torch")
 
 # Create dataloader
-train_loader = DataLoader(ds["train"], batch_size=config.batch_size, shuffle=False, collate_fn=collate_fn)
-test_loader = DataLoader(ds["test"], batch_size=config.batch_size, shuffle=False, collate_fn=collate_fn)
+# train_loader = DataLoader(ds["train"], batch_size=config.batch_size, shuffle=False, collate_fn=collate_fn)
+# test_loader = DataLoader(ds["test"], batch_size=config.batch_size, shuffle=False, collate_fn=collate_fn)
+
+train_loader = DataLoader(ds, batch_size=config.batch_size, shuffle=False, collate_fn=collate_fn)
 
 # Create model
 G = Generator(config.C_enc, config.C_dec, config.D, config.n_q, config.codebook_size).to(config.device)
@@ -76,6 +79,11 @@ for epoch in range(config.epochs):
     num_batches = 0
     
     for batch_idx, (x, lengths) in enumerate(tqdm(train_loader, desc=f"Epoch {epoch+1}/{config.epochs}")):
+
+        G.train()
+        D_wave.train()
+        D_STFT.train()
+
         x = x.to(config.device)
         x = x.unsqueeze(1) # (batch_size, 1, seq_len)
         lengths = lengths.to(config.device)
@@ -96,7 +104,8 @@ for epoch in range(config.epochs):
         logger.debug(f"stft_x: {stft_x.shape}")
         logger.debug(f"stft_x_hat: {stft_x_hat.shape}")
 
-        lengths_stft = D_STFT.cal_lengths(1+lengths)
+        lengths_stft_x = 1 + torch.div(lengths, 256, rounding_mode="floor")
+        lengths_stft = D_STFT.cal_lengths(lengths_stft_x)
         lengths_wave = D_wave.cal_lengths(lengths)
 
         # Train generator
@@ -116,6 +125,8 @@ for epoch in range(config.epochs):
         loss_G.backward()
         G_optimizer.step()
 
+        epoch_loss_G += loss_G.item()
+
         # Train discriminator
         stft_outputs_x = D_STFT(stft_x)
         wave_outputs_x = D_wave(x)
@@ -130,13 +141,16 @@ for epoch in range(config.epochs):
         D_optimizer.step()
         
         # 累积损失
-        epoch_loss_G += loss_G.item()
         epoch_loss_D += loss_D.item()
         num_batches += 1
         total_steps += 1
         
         # 生成音频并保存x和x_hat
         if total_steps % config.generate_interval == 0 and total_steps > 0:
+            G.eval()
+            D_wave.eval()
+            D_STFT.eval()
+
             # 选择batch中的第一个样本
             sample_idx = 0
             x_sample = x[sample_idx:sample_idx+1].detach()  # [1, 1, seq_len]
@@ -215,8 +229,8 @@ for epoch in range(config.epochs):
                 'loss_G': loss_G.item(),
                 'loss_D': loss_D.item(),
             }
-            checkpoint_path = os.path.join(config.checkpoint_dir, f"checkpoint_epoch_{epoch}_step_{total_steps}.pt")
-            torch.save(checkpoint, checkpoint_path)
+            # checkpoint_path = os.path.join(config.checkpoint_dir, f"checkpoint_epoch_{epoch}_step_{total_steps}.pt")
+            # torch.save(checkpoint, checkpoint_path)
             # wandb.save(checkpoint_path)
     
     # 记录每个epoch的平均损失

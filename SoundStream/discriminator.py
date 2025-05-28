@@ -15,7 +15,6 @@ class ResidualUnit2D(nn.Module):
             nn.ELU(),
             nn.Conv2d(kernel_size=(st+2, sf+2), in_channels=N,
                       out_channels=N * m, stride=(st, sf)),
-            nn.ELU(),
         )
 
         self.skip_conv = nn.Conv2d(kernel_size=(

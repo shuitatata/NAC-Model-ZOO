@@ -14,7 +14,7 @@ def G_adversarial_loss(stft_output, stft_output_length, wave_output, wave_output
 
     Args:
         n_discriminator: number of discriminator, including Wave discriminator and STFT_discriminator
-        stft_output: output of STFT_discriminator, i.e. D_stft(G(x)), [batch_size, 1, time]
+        stft_output: output of STFT_discriminator, i.e. D_stft(G(x)), [batch_size, 1, time, freq]
         stft_output_length: length of stft_output, [batch_size]
         wave_output: output of Wave_discriminator, i.e. D_wave(G(x)), list of [batch_size, 1, time]
         wave_output_length: length of wave_output, [n_discriminator, batch_size]
@@ -23,7 +23,8 @@ def G_adversarial_loss(stft_output, stft_output_length, wave_output, wave_output
         adversarial loss of generator
 
     '''
-    stft_output = stft_output.squeeze(3)
+    # STFT判别器损失
+    stft_output = stft_output.squeeze(3)  # [batch_size, 1, time]
     logger.debug(f"stft_output: {stft_output.shape}")
     loss_stft = F.relu(1 - stft_output).sum(dim=2)  # [batch_size, 1]
     logger.debug(f"loss_stft: {loss_stft.shape}")
@@ -33,6 +34,7 @@ def G_adversarial_loss(stft_output, stft_output_length, wave_output, wave_output
     logger.debug(f"stft_output_length: {stft_output_length.shape}")
     logger.debug(f"loss_stft: {loss_stft.shape}")
 
+    # Wave判别器损失
     loss_wave = torch.cat([F.relu(1 - wave_output[i]).sum(dim=2).squeeze(1)/wave_output_length[i]
                           # [batch_size * n_discriminator]
                            for i in range(len(wave_output))], dim=0)
@@ -91,8 +93,8 @@ def G_feature_loss(stft_outputs_x, stft_outputs_x_hat, stft_output_lengths, wave
     stft_loss = 0
     for i, (feat_x, feat_G_x) in enumerate(zip(stft_outputs_x, stft_outputs_x_hat)):
         # [batch_size, channels, time, freq] -> [batch_size]
-        layer_loss = ((feat_x - feat_G_x).abs().sum(dim=2) /
-                      stft_output_lengths[i].view(-1, 1, 1)).sum(dim=-1).sum(dim=-1)
+        layer_loss = ((feat_x - feat_G_x).abs().mean(dim=2) / # time 维度平均
+                      stft_output_lengths[i].view(-1, 1, 1)).mean(dim=-1).mean(dim=-1)
         stft_loss += layer_loss.mean()
     stft_loss = stft_loss / len(stft_outputs_x)
 
@@ -102,7 +104,7 @@ def G_feature_loss(stft_outputs_x, stft_outputs_x_hat, stft_output_lengths, wave
         disc_loss = 0
         for i, (feat_x, feat_G_x) in enumerate(zip(wave_outputs_x[disc_idx], wave_outputs_x_hat[disc_idx])):
             # [batch_size, channels, time, freq] -> [batch_size]
-            layer_loss = (feat_x - feat_G_x).abs().sum(dim=2).sum(dim=-
+            layer_loss = (feat_x - feat_G_x).abs().mean(dim=2).mean(dim=-
                                                                   1) / wave_output_lengths[disc_idx][i].view(-1, 1)
             disc_loss += layer_loss.mean()
         wave_loss += disc_loss / len(wave_outputs_x[disc_idx])
@@ -120,19 +122,24 @@ def G_rec_loss(x, x_hat, epsilon=1e-4):
         x: ground truth audio, [batch_size, 1, time]
         x_hat: generated audio, [batch_size, 1, time]
     '''
-    x = x.squeeze(1)
-    x_hat = x_hat.squeeze(1)
+    x = x.squeeze(1) # [batch_size, time]
+    x_hat = x_hat.squeeze(1) # [batch_size, time]
     total_loss = 0
     for i in range(6, 12):
         size = 2**i
         step = size//4  # 使用整数除法
+        # 动态调整n_mels以避免警告
+        # n_freqs = n_fft//2 + 1，确保n_mels < n_freqs
+        n_freqs = size // 2 + 1
+        n_mels = min(64, max(8, n_freqs - 1))  # 确保n_mels在合理范围内且小于n_freqs
+        
         melspec = MelSpectrogram(
-            n_fft=size, hop_length=step, n_mels=8).to(x.device)
-        x_melspec = melspec(x)
-        x_hat_melspec = melspec(x_hat)
+            n_fft=size, hop_length=step, n_mels=n_mels).to(x.device)
+        x_melspec = melspec(x) # [batch_size, n_mels, time]
+        x_hat_melspec = melspec(x_hat) # [batch_size, n_mels, time]
         alpha_s = (size/2)**0.5
-        loss = (x_melspec - x_hat_melspec).abs().sum() + alpha_s*(((torch.log(x_melspec.abs() +
-                                                                              epsilon)-torch.log(x_hat_melspec.abs()+epsilon))**2).sum(dim=-2)**0.5).sum()
+        loss = (x_melspec - x_hat_melspec).abs().mean() + alpha_s*(((torch.log(x_melspec.abs() +
+                                                                              epsilon)-torch.log(x_hat_melspec.abs()+epsilon))**2).mean(dim=-2)**0.5).mean()
         total_loss += loss
     return total_loss
 

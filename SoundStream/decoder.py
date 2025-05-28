@@ -40,7 +40,6 @@ class DecoderBlock(nn.Module):
             ResidualUnit(out_channels, dilation=3),
             nn.ELU(),
             ResidualUnit(out_channels, dilation=9),
-            nn.ELU(),
         )
 
     def forward(self, x):

@@ -39,7 +39,6 @@ class ResidualUnit(nn.Module):
             nn.ELU(),
             CausalConv1d(channels, channels,
                          kernel_size=1, dilation=1),
-            nn.ELU(),
         )
 
     def forward(self, x):
@@ -62,7 +61,6 @@ class EncoderBlock(nn.Module):
             nn.ELU(),
             CausalConv1d(in_channels, out_channels,
                          kernel_size=2*stride, stride=stride),
-            nn.ELU(),
         )
 
     def forward(self, x):
